@@ -1,6 +1,6 @@
 ﻿namespace Kiwi
 {
-    public enum SymbolType
+    internal enum SymbolType
     {
         Invalid,
         External,
@@ -10,7 +10,7 @@
     };
 
 
-    public class Symbol
+    internal class Symbol
     {
         public SymbolType Type { get; }
         public ulong Id { get; }
