@@ -12,6 +12,8 @@
 
     internal class Symbol
     {
+        public static readonly Symbol Invalid = new Symbol();
+
         public SymbolType Type { get; }
         public ulong Id { get; }
 

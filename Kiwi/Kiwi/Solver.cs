@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-
-
+﻿using System;
+using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace Kiwi
 {
@@ -12,17 +12,16 @@ namespace Kiwi
         {
             public Symbol Marker;
             public Symbol Other;
-        };
+        }
 
         private class EditInfo // TODO: make struct?
         {
             public Tag Tag;
             public Constraint Constraint;
             public double Constant;
-        };
+        }
 
         #endregion
-
         //	typedef MapType<Variable, Symbol>::Type VarMap;
         //	typedef MapType<Symbol, Row*>::Type RowMap;
         //	typedef MapType<Constraint, Tag>::Type CnMap;
@@ -31,7 +30,7 @@ namespace Kiwi
         private readonly Dictionary<Symbol, Row> _rows;
         private readonly Dictionary<Variable, Symbol> _vars;
         private readonly Dictionary<Variable, EditInfo> _edits;
-        private readonly List<Symbol> _infeasibleRows;
+        private readonly Stack<Symbol> _infeasibleRows;
         private Row _objective;
         private Row _artificial;
         private ulong _idTick;
@@ -60,14 +59,14 @@ namespace Kiwi
         #region Public Methods
 
         /// <summary>
-        /// Add a constraint to the solver.
+        ///     Add a constraint to the solver.
         /// </summary>
         /// <param name="constraint"></param>
         /// <exception cref="DuplicateConstraint">
-        /// The given constraint has already been added to the solver.
+        ///     The given constraint has already been added to the solver.
         /// </exception>
         /// <exception cref="UnsatisfiableConstraint">
-        /// The given constraint is required and cannot be satisfied.
+        ///     The given constraint is required and cannot be satisfied.
         /// </exception>
         public void AddConstraint(Constraint constraint)
         {
@@ -126,7 +125,7 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Remove a constraint from the solver.
+        ///     Remove a constraint from the solver.
         /// </summary>
         /// <param name="constraint"></param>
         /// <exception cref="UnknownConstraint">The given constraint has not been added to the solver.</exception>
@@ -174,9 +173,8 @@ namespace Kiwi
         //	}
 
 
-
         /// <summary>
-        /// Test whether a constraint has been added to the solver.
+        ///     Test whether a constraint has been added to the solver.
         /// </summary>
         /// <param name="constraint"></param>
         /// <returns></returns>
@@ -187,9 +185,9 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Add an edit variable to the solver.
-        /// This method should be called before the `suggestValue` method is
-        /// used to supply a suggested value for the given edit variable.
+        ///     Add an edit variable to the solver.
+        ///     This method should be called before the `suggestValue` method is
+        ///     used to supply a suggested value for the given edit variable.
         /// </summary>
         /// <param name="variable"></param>
         /// <param name="strength"></param>
@@ -216,23 +214,21 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Remove an edit variable from the solver.
+        ///     Remove an edit variable from the solver.
         /// </summary>
         /// <param name="variable">The variable to remove.</param>
         /// <exception cref="UnknownEditVariable">The given edit variable has not been added to the solver.</exception>
         public void RemoveEditVariable(Variable variable)
         {
             if (!_edits.TryGetValue(variable, out var edit))
-            {
                 throw new UnknownEditVariable(variable);
-            }
 
             RemoveConstraint(edit.Constraint);
             _edits.Remove(variable);
         }
 
         /// <summary>
-        /// Test whether an edit variable has been added to the solver.
+        ///     Test whether an edit variable has been added to the solver.
         /// </summary>
         /// <param name="variable"></param>
         /// <returns></returns>
@@ -243,11 +239,11 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Suggest a value for the given edit variable.
-        /// This method should be used after an edit variable has been added to
-        /// the solver in order to suggest the value for that variable. After
-        /// all suggestions have been made, the `solve` method can be used to
-        /// update the values of all variables.
+        ///     Suggest a value for the given edit variable.
+        ///     This method should be used after an edit variable has been added to
+        ///     the solver in order to suggest the value for that variable. After
+        ///     all suggestions have been made, the `solve` method can be used to
+        ///     update the values of all variables.
         /// </summary>
         /// <param name="variable"></param>
         /// <param name="value"></param>
@@ -297,13 +293,12 @@ namespace Kiwi
         //	}
 
         /// <summary>
-        /// Update the values of the external solver variables. 
+        ///     Update the values of the external solver variables.
         /// </summary>
         public void UpdateVariables()
         {
-            foreach (var @var in _vars.Keys)
+            foreach (var var in _vars.Keys)
             {
-
             }
         }
         //	void updateVariables()
@@ -325,14 +320,14 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Reset the solver to the empty starting condition.
+        ///     Reset the solver to the empty starting condition.
         /// </summary>
         /// <remarks>
-        /// This method resets the internal solver state to the empty starting
-        /// condition, as if no constraints or edit variables have been added.
-        /// This can be faster than deleting the solver and creating a new one
-        /// when the entire system must change, since it can avoid unecessary
-        /// heap(de)allocations.
+        ///     This method resets the internal solver state to the empty starting
+        ///     condition, as if no constraints or edit variables have been added.
+        ///     This can be faster than deleting the solver and creating a new one
+        ///     when the entire system must change, since it can avoid unecessary
+        ///     heap(de)allocations.
         /// </remarks>
         public void Reset()
         {
@@ -348,7 +343,7 @@ namespace Kiwi
 
 
         /// <summary>
-        /// Dump a representation of the solver internals to stdout.
+        ///     Dump a representation of the solver internals to stdout.
         /// </summary>
         public void Dump()
         {
@@ -372,9 +367,9 @@ namespace Kiwi
         /* Get the symbol for the given variable.
         If a symbol does not exist for the variable, one will be created.
         */
-        Symbol GetVarSymbol(Variable variable)
+        private Symbol GetVarSymbol(Variable variable)
         {
-            if (_vars.TryGetValue(variable, out Symbol symbol)) return symbol;
+            if (_vars.TryGetValue(variable, out var symbol)) return symbol;
             symbol = new Symbol(SymbolType.External, _idTick++);
             return _vars[variable] = symbol;
         }
@@ -388,7 +383,7 @@ namespace Kiwi
         //	}
 
         //	/* Create a new Row object for the given constraint.
-        
+
         //	The terms in the constraint will be converted to cells in the row.
         //	Any term in the constraint with a coefficient of zero is ignored.
         //	This method uses the `getVarSymbol` method to get the symbol for
@@ -486,7 +481,7 @@ namespace Kiwi
         //	2) A negative slack or error tag variable.
         //
         //	If a subject cannot be found, an invalid symbol will be returned.
-        Symbol ChooseSubject(Row row, Tag tag)
+        private Symbol ChooseSubject(Row row, Tag tag)
         {
             foreach (var symbol in row.Cells.Keys)
             {
@@ -495,13 +490,13 @@ namespace Kiwi
                     return symbol;
                 }
 
-                if (tag.Marker.Type == SymbolType.Slack || 
+                if (tag.Marker.Type == SymbolType.Slack ||
                     tag.Marker.Type == SymbolType.Error)
                 {
                     if (row.CoefficientFor(tag.Marker) < 0.0) return tag.Marker;
                 }
 
-                if (tag.Other.Type == SymbolType.Slack || 
+                if (tag.Other.Type == SymbolType.Slack ||
                     tag.Other.Type == SymbolType.Error)
                 {
                     if (row.CoefficientFor(tag.Other) < 0.0) return tag.Other;
@@ -532,13 +527,11 @@ namespace Kiwi
         //	}
 
 
-
         // 	Add the row to the tableau using an artificial variable.
         //
         //	This will return false if the constraint cannot be satisfied.
-        bool AddWithArtificialVariable(Row row)
+        private bool AddWithArtificialVariable(Row row)
         {
-
         }
         // 	{
         //		// Create and add the artificial variable to the tableau
@@ -578,15 +571,12 @@ namespace Kiwi
         // 	}
 
 
-
-
         // Substitute the parametric symbol with the given row.
         //
         // This method will substitute all instances of the parametric symbol
         // in the tableau and the objective function with the given row.
         private void Substitute(Symbol symbol, Row row)
         {
-
         }
         //	{
         //		typedef RowMap::iterator iter_t;
@@ -604,8 +594,6 @@ namespace Kiwi
         //	}
 
 
-
-
         // Optimize the system for the given objective function.
         //
         // This method performs iterations of Phase 2 of the simplex method
@@ -617,7 +605,18 @@ namespace Kiwi
         //      The value of the objective function is unbounded.
         private void Optimize(Row objective)
         {
+            while (true)
+            {
+                var entering = GetEnteringSymbol(objective);
+                if (entering.Type == SymbolType.Invalid)
+                {
+                    return;
+                }
 
+                var obj = GetLeavingRow(entering);
+
+
+            }
         }
         //	{
         //		while( true )
@@ -640,19 +639,39 @@ namespace Kiwi
 
 
 
-
-        //	/* Optimize the system using the dual of the simplex method.
-
+        //	Optimize the system using the dual of the simplex method.
+        //
         //	The current state of the system should be such that the objective
         //	function is optimal, but not feasible. This method will perform
         //	an iteration of the dual simplex method to make the solution both
         //	optimal and feasible.
-
+        //
         //	Throws
         //	------
         //	InternalSolverError
         //		The system cannot be dual optimized.
+        private void DualOptimize()
+        {
+            while (_infeasibleRows.Count > 0)
+            {
+                Symbol leaving = _infeasibleRows.Pop();
 
+                if (_rows.TryGetValue(leaving, out Row row) && row.Constant < 0.0)
+                {
+                    Symbol entering = GetDualEnteringSymbol(row);
+                    if (entering.Type == SymbolType.Invalid)
+                    {
+                        throw new InternalSolverError("Dual optimize failed.");
+                    }
+
+                    // pivot the entering symbol into the basis
+                    _rows.Remove(leaving);
+                    row.SolveFor(leaving, entering);
+                    Substitute(entering, row);
+                    _rows[entering] = row;
+                }
+            }
+        }
         //	*/
         //	void dualOptimize()
         //	{
@@ -677,13 +696,30 @@ namespace Kiwi
         //		}
         //	}
 
-        //	/* Compute the entering variable for a pivot operation.
 
+
+
+        //	Compute the entering variable for a pivot operation.
+        //
         //	This method will return first symbol in the objective function which
         //	is non-dummy and has a coefficient less than zero. If no symbol meets
         //	the criteria, it means the objective function is at a minimum, and an
         //	invalid symbol is returned.
+        private Symbol GetEnteringSymbol(Row objective)
+        {
+            foreach (var entry in objective.Cells)
+            {
+                Symbol symbol = entry.Key;
+                double value = entry.Value; // TODO name better than value
 
+                if (symbol.Type != SymbolType.Dummy && value < 0.0)
+                {
+                    return symbol;
+                }
+            }
+
+            return Symbol.Invalid;
+        }
         //	*/
         //	Symbol getEnteringSymbol( const Row& objective )
         //	{
@@ -697,15 +733,39 @@ namespace Kiwi
         //		return Symbol();
         //	}
 
-        //	/* Compute the entering symbol for the dual optimize operation.
 
+
+        //	Compute the entering symbol for the dual optimize operation.
+        //
         //	This method will return the symbol in the row which has a positive
         //	coefficient and yields the minimum ratio for its respective symbol
         //	in the objective function. The provided row *must* be infeasible.
         //	If no symbol is found which meats the criteria, an invalid symbol
         //	is returned.
+        private Symbol GetDualEnteringSymbol(Row row)
+        {
+            Symbol entering = new Symbol(); // TODO make value type?
+            var ratio = double.MaxValue;
 
-        //	*/
+            foreach (var entry in row.Cells)
+            {
+                Symbol symbol = entry.Key;
+                double value = entry.Value; // TODO name better than value
+
+                if (value > 0.0 && symbol.Type != SymbolType.Dummy)
+                {
+                    double coeff = _objective.CoefficientFor(symbol);
+                    double r = coeff / value;
+                    if (r < ratio)
+                    {
+                        ratio = r;
+                        entering = symbol;
+                    }
+                }
+            }
+
+            return entering;
+        }
         //	Symbol getDualEnteringSymbol( const Row& row )
         //	{
         //		typedef Row::CellMap::const_iterator iter_t;
@@ -728,11 +788,23 @@ namespace Kiwi
         //		return entering;
         //	}
 
-        //	/* Get the first Slack or Error symbol in the row.
 
+
+        //	Get the first Slack or Error symbol in the row.
+        //
         //	If no such symbol is present, and Invalid symbol will be returned.
-
-        //	*/
+        private Symbol AnyPivotableSymbol(Row row)
+        {
+            foreach (var symbol in row.Cells.Keys)
+            {
+                if (symbol.Type == SymbolType.Slack ||
+                    symbol.Type == SymbolType.Error)
+                {
+                    return symbol;
+                }
+            }
+            return new Symbol();
+        }
         //	Symbol anyPivotableSymbol( const Row& row )
         //	{
         //		typedef Row::CellMap::const_iterator iter_t;
@@ -746,14 +818,40 @@ namespace Kiwi
         //		return Symbol();
         //	}
 
-        //	/* Compute the row which holds the exit symbol for a pivot.
 
+        
+        //	Compute the row which holds the exit symbol for a pivot.
+        //
         //	This method will return an iterator to the row in the row map
         //	which holds the exit symbol. If no appropriate exit symbol is
         //	found, the end() iterator will be returned. This indicates that
         //	the objective function is unbounded.
+        private (Symbol symbol, Row row) GetLeavingRow(Symbol entering)
+        {
+            var ratio = double.MaxValue;
+            var found = (symbol:Symbol.Invalid, row:(Row) null);
 
-        //	*/
+            foreach (var entry in _rows)
+            {
+                var symbol = entry.Key;
+                var row = entry.Value;
+
+                if (symbol.Type != SymbolType.External)
+                {
+                    double temp = row.CoefficientFor(entering);
+                    if (temp < 0.0)
+                    {
+                        double tempRatio = -row.Constant / temp;
+                        if (tempRatio < ratio)
+                        {
+                            ratio = tempRatio;
+                            found = (symbol, row);
+                        }
+                    }
+                }
+            }
+            return found;
+        }
         //	RowMap::iterator getLeavingRow( const Symbol& entering )
         //	{
         //		typedef RowMap::iterator iter_t;
@@ -779,23 +877,37 @@ namespace Kiwi
         //		return found;
         //	}
 
-        //	/* Compute the leaving row for a marker variable.
 
+
+        //  Compute the leaving row for a marker variable.
+        //
         //	This method will return an iterator to the row in the row map
         //	which holds the given marker variable. The row will be chosen
         //	according to the following precedence:
-
+        //
         //	1) The row with a restricted basic varible and a negative coefficient
         //	   for the marker with the smallest ratio of -constant / coefficient.
-
+        //
         //	2) The row with a restricted basic variable and the smallest ratio
         //	   of constant / coefficient.
-
+        //
         //	3) The last unrestricted row which contains the marker.
-
+        //
         //	If the marker does not exist in any row, the row map end() iterator
         //	will be returned. This indicates an internal solver error since
         //	the marker *should* exist somewhere in the tableau.
+        private Row GetMarkerLeavingRow(Symbol marker)
+        {
+            var r1 = double.MaxValue;
+            var r2 = double.MaxValue;
+
+            foreach (var symbol in _rows.Keys)
+            {
+                 // TODO
+            }
+
+            throw new NotImplementedException();
+        }
 
         //	*/
         //	RowMap::iterator getMarkerLeavingRow( const Symbol& marker )
@@ -862,7 +974,7 @@ namespace Kiwi
             {
                 _objective.Insert(marker, -strength);
             }
-        }        
+        }
 
 
         // Test whether a row is composed of all dummy variables.
@@ -877,7 +989,7 @@ namespace Kiwi
 
         #endregion
     }
-    
+
     //	struct DualOptimizeGuard
     //	{
     //		DualOptimizeGuard( SolverImpl& impl ) : m_impl( impl ) {}
