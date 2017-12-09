@@ -63,19 +63,19 @@ namespace Kiwi
     {
         private const string _notSupported = "Not supported";
 
-        public Var V { get; }
+        public Var Var { get; }
         public double Coeff { get; }
 
         public Trm(Var v, double c = 1.0)
         {
-            V = v;
+            Var = v;
             Coeff = c;
         }
 
-        public static Trm operator *(Trm t, double c) => new Trm(t.V, t.Coeff * c);
-        public static Trm operator *(double c, Trm t) => new Trm(t.V, t.Coeff * c);
-        public static Trm operator /(Trm t, double c) => new Trm(t.V, t.Coeff / c);
-        public static Trm operator -(Trm t) => new Trm(t.V, -t.Coeff);
+        public static Trm operator *(Trm t, double c) => new Trm(t.Var, t.Coeff * c);
+        public static Trm operator *(double c, Trm t) => new Trm(t.Var, t.Coeff * c);
+        public static Trm operator /(Trm t, double c) => new Trm(t.Var, t.Coeff / c);
+        public static Trm operator -(Trm t) => new Trm(t.Var, -t.Coeff);
 
         public static Expr operator +(Trm left, Expr right) => new Expr(left).Add(right);
         public static Expr operator +(Trm left, Trm right) => new Expr(left).Add(right);
@@ -120,17 +120,17 @@ namespace Kiwi
         private const string _notSupported = "Not supported";
 
         public double Const { get; }
-        public Trm[] Ts { get; }
+        public Trm[] Terms { get; }
 
         public Expr(Trm t, double c = 0.0)
         {
-            Ts = new[] {t};
+            Terms = new[] {t};
             Const = c;
         }
 
         private Expr(Trm[] ts, double c)
         {
-            Ts = ts;
+            Terms = ts;
             Const = c;
         }
 
@@ -159,10 +159,10 @@ namespace Kiwi
         [Pure]
         public Expr Scale(double scale)
         {
-            var scaledTs = new Trm[Ts.Length];
-            for (int i = 0; i < Ts.Length; i++)
+            var scaledTs = new Trm[Terms.Length];
+            for (int i = 0; i < Terms.Length; i++)
             {
-                scaledTs[i] = Ts[i] * scale;
+                scaledTs[i] = Terms[i] * scale;
             }
             return new Expr(scaledTs, Const * scale);
         }
@@ -172,26 +172,26 @@ namespace Kiwi
         [Pure]
         public Expr Add(Expr other)
         {
-            return new Expr(Concat(Ts, other.Ts), Const + other.Const);
+            return new Expr(Concat(Terms, other.Terms), Const + other.Const);
         }
 
         [Pure]
         public Expr Add(Trm other)
         {
-            return new Expr(Concat(Ts, other), Const);
+            return new Expr(Concat(Terms, other), Const);
         }
 
         // TODO can be removed if there is Var cast to Term operator
         [Pure]
         public Expr Add(Var v)
         {
-            return new Expr(Concat(Ts, new Trm(v)), Const);
+            return new Expr(Concat(Terms, new Trm(v)), Const);
         }
 
         [Pure]
         public Expr Add(double c)
         {
-            return new Expr(Ts, Const + c);
+            return new Expr(Terms, Const + c);
         }
 
         #endregion
