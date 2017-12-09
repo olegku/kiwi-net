@@ -49,7 +49,7 @@ namespace Kiwi
             _rows = new Dictionary<Symbol, Row>();
             _vars = new Dictionary<Variable, Symbol>();
             _edits = new Dictionary<Variable, EditInfo>();
-            _infeasibleRows = new List<Symbol>();
+            _infeasibleRows = new Stack<Symbol>();
             _objective = new Row();
             _idTick = 1;
         }
@@ -483,6 +483,8 @@ namespace Kiwi
         //	If a subject cannot be found, an invalid symbol will be returned.
         private Symbol ChooseSubject(Row row, Tag tag)
         {
+            throw new NotImplementedException();
+
             foreach (var symbol in row.Cells.Keys)
             {
                 if (symbol.Type == SymbolType.External)
@@ -532,6 +534,8 @@ namespace Kiwi
         //	This will return false if the constraint cannot be satisfied.
         private bool AddWithArtificialVariable(Row row)
         {
+            throw new NotImplementedException();
+
         }
         // 	{
         //		// Create and add the artificial variable to the tableau

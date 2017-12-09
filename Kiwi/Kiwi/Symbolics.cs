@@ -64,18 +64,18 @@ namespace Kiwi
         private const string _notSupported = "Not supported";
 
         public Var V { get; }
-        public double C { get; }
+        public double Coeff { get; }
 
         public Trm(Var v, double c = 1.0)
         {
             V = v;
-            C = c;
+            Coeff = c;
         }
 
-        public static Trm operator *(Trm t, double c) => new Trm(t.V, t.C * c);
-        public static Trm operator *(double c, Trm t) => new Trm(t.V, t.C * c);
-        public static Trm operator /(Trm t, double c) => new Trm(t.V, t.C / c);
-        public static Trm operator -(Trm t) => new Trm(t.V, -t.C);
+        public static Trm operator *(Trm t, double c) => new Trm(t.V, t.Coeff * c);
+        public static Trm operator *(double c, Trm t) => new Trm(t.V, t.Coeff * c);
+        public static Trm operator /(Trm t, double c) => new Trm(t.V, t.Coeff / c);
+        public static Trm operator -(Trm t) => new Trm(t.V, -t.Coeff);
 
         public static Expr operator +(Trm left, Expr right) => new Expr(left).Add(right);
         public static Expr operator +(Trm left, Trm right) => new Expr(left).Add(right);
@@ -119,19 +119,19 @@ namespace Kiwi
     {
         private const string _notSupported = "Not supported";
 
-        public double C { get; }
+        public double Const { get; }
         public Trm[] Ts { get; }
 
         public Expr(Trm t, double c = 0.0)
         {
             Ts = new[] {t};
-            C = c;
+            Const = c;
         }
 
         private Expr(Trm[] ts, double c)
         {
             Ts = ts;
-            C = c;
+            Const = c;
         }
 
         #region Array Concat Methods
@@ -164,7 +164,7 @@ namespace Kiwi
             {
                 scaledTs[i] = Ts[i] * scale;
             }
-            return new Expr(scaledTs, C * scale);
+            return new Expr(scaledTs, Const * scale);
         }
 
         #region Append Methods
@@ -172,26 +172,26 @@ namespace Kiwi
         [Pure]
         public Expr Add(Expr other)
         {
-            return new Expr(Concat(Ts, other.Ts), C + other.C);
+            return new Expr(Concat(Ts, other.Ts), Const + other.Const);
         }
 
         [Pure]
         public Expr Add(Trm other)
         {
-            return new Expr(Concat(Ts, other), C);
+            return new Expr(Concat(Ts, other), Const);
         }
 
         // TODO can be removed if there is Var cast to Term operator
         [Pure]
         public Expr Add(Var v)
         {
-            return new Expr(Concat(Ts, new Trm(v)), C);
+            return new Expr(Concat(Ts, new Trm(v)), Const);
         }
 
         [Pure]
         public Expr Add(double c)
         {
-            return new Expr(Ts, C + c);
+            return new Expr(Ts, Const + c);
         }
 
         #endregion
