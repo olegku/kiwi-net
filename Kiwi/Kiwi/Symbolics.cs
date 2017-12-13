@@ -31,7 +31,7 @@ namespace Kiwi
         public static Expr operator -(Var left, Trm right) => new Trm(left) - right;
         public static Expr operator -(Var left, Var right) => new Trm(left) - right;
         public static Expr operator -(Var left, double right) => new Trm(left) - right;
-        public static Expr operator -(double left, Var right) => new Trm(right) - left;
+        public static Expr operator -(double left, Var right) => left - new Trm(right);
 
         public static Cnt operator ==(Var left, Expr right) => new Trm(left) == right;
         public static Cnt operator ==(Var left, Trm right) => new Trm(left) == right;
@@ -59,8 +59,29 @@ namespace Kiwi
 
     }
 
-    public class Trm
+    public class Trm //: IEquatable<Trm>
     {
+        //public bool Equals(Trm other)
+        //{
+        //    return Equals(Var, other.Var) && Coeff.Equals(other.Coeff);
+        //}
+
+        //public override bool Equals(object obj)
+        //{
+        //    if (ReferenceEquals(null, obj)) return false;
+        //    if (ReferenceEquals(this, obj)) return true;
+        //    if (obj.GetType() != this.GetType()) return false;
+        //    return Equals((Trm)obj);
+        //}
+
+        //public override int GetHashCode()
+        //{
+        //    unchecked
+        //    {
+        //        return ((Var != null ? Var.GetHashCode() : 0) * 397) ^ Coeff.GetHashCode();
+        //    }
+        //}
+
         private const string _notSupported = "Not supported";
 
         public Var Var { get; }
