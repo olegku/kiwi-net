@@ -1,8 +1,8 @@
 ﻿namespace Kiwi
 {
-    public class Variable
+    public partial class Variable
     {
-        public Variable(string name)
+        public Variable(string name = "")
         {
             Name = name;
         }

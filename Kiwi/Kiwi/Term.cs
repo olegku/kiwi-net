@@ -1,6 +1,6 @@
 ﻿namespace Kiwi
 {
-    public class Term
+    public partial class Term
     {
         public Term(Variable variable, double coefficient = 1.0)
         {
