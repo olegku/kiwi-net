@@ -211,7 +211,7 @@ namespace Kiwi
 
     partial class Constraint
     {
-        public static Constraint operator |(Constraint cnt, double strength) => throw new NotImplementedException();
-        public static Constraint operator |(double strength, Constraint cnt) => throw new NotImplementedException();
+        public static Constraint operator |(Constraint cnt, double strength) => new Constraint(cnt, strength);
+        public static Constraint operator |(double strength, Constraint cnt) => new Constraint(cnt, strength);
     }
 }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using Xunit;
 
 namespace Kiwi.Tests
@@ -11,159 +10,205 @@ namespace Kiwi.Tests
         [Fact]
         public void test_expression_creation()
         {
-            //    """Test the Term constructor.
+            // Test the Term constructor.
 
-            //    """
-            //    v = Variable('foo')
-            //    v2 = Variable('bar')
-            //    v3 = Variable('aux')
-            //    e1 = Expression((v*1, v2*2, v3*3))
-            //    e2 = Expression((v*1, v2*2, v3*3), 10)
+            var v = new Variable("foo");
+            var v2 = new Variable("bar");
+            var v3 = new Variable("aux");
+            //var e1 = new Expression((v * 1, v2 * 2, v3 * 3));
+            //var e2 = new Expression((v * 1, v2 * 2, v3 * 3), 10);
 
             //    for e, val in ((e1, 0), (e2, 10)):
-            //        t = e.terms()
+            //        var t = e.Terms;
             //        assert(len(t) == 3 and
-            //                t[0].variable() is v and t[0].coefficient() == 1 and
-            //                t[1].variable() is v2 and t[1].coefficient() == 2 and
-            //                t[2].variable() is v3 and t[2].coefficient() == 3)
-            //        assert e.constant() == val
+            //                t[0].Variable is v and t[0].Coefficient == 1 and
+            //                t[1].Variable is v2 and t[1].Coefficient == 2 and
+            //                t[2].Variable is v3 and t[2].Coefficient == 3);
+            //        Assert.Equal(val, e.Constant)
 
-            //    assert str(e2) == '1 * foo + 2 * bar + 3 * aux + 10'
+            //    Assert.Equal("1 * foo + 2 * bar + 3 * aux + 10", str(e2))
         }
 
 
         [Fact]
         public void test_expression_arith_operators()
         {
-            //    """Test the arithmetic operation on terms.
+            // Test the arithmetic operation on terms.
 
-            //    """
-            //    v = Variable('foo')
-            //    v2 = Variable('bar')
-            //    t = Term(v, 10)
-            //    t2 = Term(v2)
-            //    e = t + 5
-            //    e2 = v2 - 10
+            var v = new Variable("foo");
+            var v2 = new Variable("bar");
+            var t = new Term(v, 10);
+            var t2 = new Term(v2);
+            var e = t + 5;
+            var e2 = v2 - 10;
 
-            //    neg = -e
-            //    assert isinstance(neg, Expression)
-            //    neg_t = neg.terms()
-            //    assert(len(neg_t) == 1 and
-            //            neg_t[0].variable() is v and neg_t[0].coefficient() == -10 and
-            //            neg.constant() == -5)
+            var neg = -e;
+            Assert.Equal(-5, neg.Constant);
+            Assert.Collection(neg.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(-10, term.Coefficient);
+                });
 
-            //    mul = e* 2
-            //    assert isinstance(mul, Expression)
-            //    mul_t = mul.terms()
-            //    assert(len(mul_t) == 1 and
-            //            mul_t[0].variable() is v and mul_t[0].coefficient() == 20 and
-            //            mul.constant() == 10)
+            var mul = e * 2;
+            Assert.Equal(10, mul.Constant);
+            Assert.Collection(mul.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(20, term.Coefficient);
+                });
 
-            //    with pytest.raises(TypeError):
-            //        e* v
+            var div = e / 2;
+            Assert.Equal(2.5, div.Constant);
+            Assert.Collection(div.Terms, 
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(5, term.Coefficient);
+                });
 
-            //    div = e / 2
-            //    assert isinstance(div, Expression)
-            //    div_t = div.terms()
-            //    assert(len(div_t) == 1 and
-            //            div_t[0].variable() is v and div_t[0].coefficient() == 5 and
-            //            div.constant() == 2.5)
+            var add = e + 2;
+            Assert.Equal(7, add.Constant);
+            Assert.Collection(add.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                });
 
-            //    with pytest.raises(TypeError):
-            //        e / v2
+            var add2 = e + v2;
+            Assert.Equal(5, add2.Constant);
+            Assert.Collection(add2.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(1, term.Coefficient);
+                });
 
-            //    add = e + 2
-            //    assert isinstance(add, Expression)
-            //    assert add.constant() == 7
-            //    terms = add.terms()
-            //    assert(len(terms) == 1 and terms[0].variable() is v and
-            //            terms[0].coefficient() == 10)
+            var add3 = e + t2;
+            Assert.Equal(5, add3.Constant);
+            Assert.Collection(add3.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(1, term.Coefficient);
+                });
 
-            //    add2 = e + v2
-            //    assert isinstance(add2, Expression)
-            //    assert add2.constant() == 5
-            //    terms = add2.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == 1)
+            var add4 = e + e2;
+            Assert.Equal(-5, add4.Constant);
+            Assert.Collection(add4.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(1, term.Coefficient);
+                });
 
-            //    add3 = e + t2
-            //    assert isinstance(add3, Expression)
-            //    assert add3.constant() == 5
-            //    terms = add3.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == 1)
+            var sub = e - 2;
+            Assert.Equal(3, sub.Constant);
+            Assert.Collection(sub.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                });
 
-            //    add4 = e + e2
-            //    assert isinstance(add4, Expression)
-            //    assert add4.constant() == -5
-            //    terms = add4.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == 1)
+            var sub2 = e - v2;
+            Assert.Equal(5, sub2.Constant);
+            Assert.Collection(sub2.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(-1, term.Coefficient);
+                });
 
-            //    sub = e - 2
-            //    assert isinstance(sub, Expression)
-            //    assert sub.constant() == 3
-            //    terms = sub.terms()
-            //    assert(len(terms) == 1 and terms[0].variable() is v and
-            //            terms[0].coefficient() == 10)
+            var sub3 = e - t2;
+            Assert.Equal(5, sub3.Constant);
+            Assert.Collection(sub3.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(-1, term.Coefficient);
+                });
 
-            //    sub2 = e - v2
-            //    assert isinstance(sub2, Expression)
-            //    assert sub2.constant() == 5
-            //    terms = sub2.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == -1)
-
-            //    sub3 = e - t2
-            //    assert isinstance(sub3, Expression)
-            //    assert sub3.constant() == 5
-            //    terms = sub3.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == -1)
-
-            //    sub4 = e - e2
-            //    assert isinstance(sub3, Expression)
-            //    assert sub4.constant() == 15
-            //    terms = sub4.terms()
-            //    assert(len(terms) == 2 and
-            //            terms[0].variable() is v and terms[0].coefficient() == 10 and
-            //            terms[1].variable() is v2 and terms[1].coefficient() == -1)
+            var sub4 = e - e2;
+            Assert.Equal(15, sub4.Constant);
+            Assert.Collection(sub4.Terms,
+                term =>
+                {
+                    Assert.Equal(v, term.Variable);
+                    Assert.Equal(10, term.Coefficient);
+                },
+                term =>
+                {
+                    Assert.Equal(v2, term.Variable);
+                    Assert.Equal(-1, term.Coefficient);
+                });
         }
 
         [Fact]
         public void test_expression_rich_compare_operations()
         {
-            //    """Test using comparison on variables.
+            // Test using comparison on variables.
 
-            //    """
-            //    v = Variable('foo')
-            //    v2 = Variable('bar')
-            //    t1 = Term(v, 10)
-            //    e1 = t1 + 5
-            //    e2 = v2 - 10
+            var v = new Variable("foo");
+            var v2 = new Variable("bar");
+            var t1 = new Term(v, 10);
+            var e1 = t1 + 5;
+            var e2 = v2 - 10;
 
-            //    for op, symbol in ((operator.le, '<='), (operator.eq, '=='),
-            //                       (operator.ge, '>=')):
-            //        c = op(e1, e2)
-            //        assert isinstance(c, Constraint)
-            //        e = c.expression()
-            //        t = e.terms()
-            //        assert len(t) == 2
-            //        if t[0].variable() is not v:
-            //            t = (t[1], t[0])
-            //        assert(t[0].variable() is v and t[0].coefficient() == 10 and
-            //                t[1].variable() is v2 and t[1].coefficient() == -1)
-            //        assert e.constant() == 15
-            //        assert c.op() == symbol and c.strength() == strength.required
+            var ops= new Dictionary<RelationalOperator, Func<Expression, Expression, Constraint>>()
+            {
+                [RelationalOperator.OP_LE] = (left, right) => left <= right,
+                [RelationalOperator.OP_EQ] = (left, right) => left == right,
+                [RelationalOperator.OP_GE] = (left, right) => left >= right,
+            };
 
-            //    for op in (operator.lt, operator.ne, operator.gt):
-            //        with pytest.raises(TypeError):
-            //            op(v, v2)
+            foreach (var op in ops.Keys)
+            {
+                var c = ops[op](e1, e2);
+
+                Assert.Collection(c.Expression.Terms,
+                    term =>
+                    {
+                        Assert.Equal(v, term.Variable);
+                        Assert.Equal(10, term.Coefficient);
+                    },
+                    term =>
+                    {
+                        Assert.Equal(v2, term.Variable);
+                        Assert.Equal(-1, term.Coefficient);
+                    });
+                Assert.Equal(15, c.Expression.Constant);
+                Assert.Equal(op, c.Op);
+                Assert.Equal(Strength.Required, c.Strength);
+            }
         }
     }
 }

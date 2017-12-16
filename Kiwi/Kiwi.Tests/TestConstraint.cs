@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Xunit;
+﻿using Xunit;
 
 namespace Kiwi.Tests
 {
@@ -10,41 +7,54 @@ namespace Kiwi.Tests
         [Fact]
         public void test_constraint_creation()
         {
-            //    """Test constraints creation and methods.
+            // Test constraints creation and methods.
 
-            //    """
-            //    v = Variable('foo')
-            //    c = Constraint(v + 1, '==')
+            var v = new Variable("foo");
+            var c = new Constraint(v + 1, RelationalOperator.OP_EQ);
 
-            //    assert c.strength() == strength.required and c.op() == '=='
-            //    e = c.expression()
-            //    t = e.terms()
-            //    assert(e.constant() == 1 and
-            //            len(t) == 1 and t[0].variable() is v and t[0].coefficient() == 1)
+            Assert.Equal(Strength.Required, c.Strength);
+            Assert.Equal(RelationalOperator.OP_EQ, c.Op);
+            Assert.Equal(1, c.Expression.Constant);
+            Assert.Collection(c.Expression.Terms, term =>
+            {
+                Assert.Equal(v, term.Variable);
+                Assert.Equal(1, term.Coefficient);
+            });
 
-            //    assert str(c) == '1 * foo + 1 == 0 | strength = 1.001e+09'
+            // TODO    assert str(c) == "1 * foo + 1 == 0 | strength = 1.001e+09"
 
-            //    for s in ('weak', 'medium', 'strong', 'required'):
-            //        c = Constraint(v + 1, '>=', s)
-            //        assert c.strength() == getattr(strength, s)
+            foreach (var strength in new[]
+            {
+                Strength.Weak,
+                Strength.Medium,
+                Strength.Strong,
+                Strength.Required
+            })
+            {
+                c = new Constraint(v + 1, RelationalOperator.OP_GE, strength);
+                Assert.Equal(strength, c.Strength);
+            }
         }
 
         [Fact]
         public void test_constraint_or_operator()
         {
-            //    """Test modifying a constraint strength using the | operator.
+            // Test modifying a constraint strength using the | operator.
 
-            //    """
-            //    v = Variable('foo')
-            //    c = Constraint(v + 1, u'==')
+            var v = new Variable("foo");
+            var c = new Constraint(v + 1, RelationalOperator.OP_EQ);
 
-            //    for s in (u'weak', 'medium', 'strong', u'required',
-            //              strength.create(1, 1, 0)):
-            //        c2 = c | s
-            //        if isinstance(s, (type(''), type(u''))):
-            //            assert c2.strength() == getattr(strength, s)
-            //        else:
-            //            assert c2.strength() == s
+            foreach (var strength in new[]
+            {
+                Strength.Weak,
+                Strength.Medium,
+                Strength.Strong,
+                Strength.Required
+            })
+            {
+                var c2 = c | strength;
+                Assert.Equal(strength, c2.Strength);
+            }
         }
     }
 }

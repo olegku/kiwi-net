@@ -8,93 +8,56 @@ namespace Kiwi.Tests
     public class TestSolver
     {
         [Fact]
-        public void test_solver_creation()
+        public void test_managing_edit_variable()
         {
-            //    """Test initializing a solver.
+            // Test adding/removing edit variables.
 
-            //    """
-            //    s = Solver()
-            //    assert isinstance(s, Solver)
+            var s = new Solver();
+            var v1 = new Variable("foo");
+            var v2 = new Variable("bar");
 
-            //    with pytest.raises(TypeError):
-            //        Solver(Variable())
+
+            Assert.False(s.HasEditVariable(v1));
+            s.AddEditVariable(v1, Strength.Weak);
+            Assert.True(s.HasEditVariable(v1));
+            Assert.Throws<DuplicateEditVariable>(() => s.AddEditVariable(v1, Strength.Medium));
+            Assert.Throws<UnknownEditVariable>(() => s.RemoveEditVariable(v2));
+            s.RemoveEditVariable(v1);
+            Assert.False(s.HasEditVariable(v1));
+
+            Assert.Throws<BadRequiredStrength>(() => s.AddEditVariable(v1, Strength.Required));
+
+            s.AddEditVariable(v2, Strength.Strong);
+            Assert.True(s.HasEditVariable(v2));
+            Assert.Throws<UnknownEditVariable>(() => s.SuggestValue(v1, 10));
+
+            s.Reset();
+            Assert.False(s.HasEditVariable(v2));
         }
 
         [Fact]
-        public void test_managing_edit_variable()
+        public void test_managing_constraints()
         {
-            //    """Test adding/removing edit variables.
+            // Test adding/removing constraints.
 
-            //    """
-            //    s = Solver()
-            //    v1 = Variable("foo")
-            //    v2 = Variable("bar")
+            var s = new Solver();
+            var v = new Variable("foo");
+            var c1 = v >= 1;
+            var c2 = v <= 0;
 
-            //    with pytest.raises(TypeError):
-            //        s.hasEditVariable(object())
-            //    with pytest.raises(TypeError):
-            //        s.addEditVariable(object(), "weak")
-            //    with pytest.raises(TypeError):
-            //        s.removeEditVariable(object())
-            //    with pytest.raises(TypeError):
-            //        s.suggestValue(object(), 10)
+            Assert.False(s.HasConstraint(c1));
+            s.AddConstraint(c1);
+            Assert.True(s.HasConstraint(c1));
+            Assert.Throws<DuplicateConstraint>(() => s.AddConstraint(c1));
+            Assert.Throws<UnknownConstraint>(() => s.RemoveConstraint(c2));
+            Assert.Throws<UnsatisfiableConstraint>(() => s.AddConstraint(c2));
+            s.RemoveConstraint(c1);
+            Assert.False(s.HasConstraint(c1));
 
-            //    assert not s.hasEditVariable(v1)
-            //    s.addEditVariable(v1, "weak")
-            //    assert s.hasEditVariable(v1)
-            //    with pytest.raises(DuplicateEditVariable):
-            //        s.addEditVariable(v1, "medium")
-            //    with pytest.raises(UnknownEditVariable):
-            //        s.removeEditVariable(v2)
-            //    s.removeEditVariable(v1)
-            //    assert not s.hasEditVariable(v1)
-
-            //    with pytest.raises(BadRequiredStrength):
-            //        s.addEditVariable(v1, "required")
-
-            //    s.addEditVariable(v2, "strong")
-            //    assert s.hasEditVariable(v2)
-            //    with pytest.raises(UnknownEditVariable):
-            //        s.suggestValue(v1, 10)
-
-            //    s.reset()
-            //    assert not s.hasEditVariable(v2)
-                    }
-
-                    [Fact]
-                    public void test_managing_constraints()
-                    {
-            //    """Test adding/removing constraints.
-
-            //    """
-            //    s = Solver()
-            //    v = Variable("foo")
-            //    c1 = v >= 1
-            //    c2 = v <= 0
-
-            //    with pytest.raises(TypeError):
-            //        s.hasConstraint(object())
-            //    with pytest.raises(TypeError):
-            //        s.addConstraint(object())
-            //    with pytest.raises(TypeError):
-            //        s.removeConstraint(object())
-
-            //    assert not s.hasConstraint(c1)
-            //    s.addConstraint(c1)
-            //    assert s.hasConstraint(c1)
-            //    with pytest.raises(DuplicateConstraint):
-            //        s.addConstraint(c1)
-            //    with pytest.raises(UnknownConstraint):
-            //        s.removeConstraint(c2)
-            //    with pytest.raises(UnsatisfiableConstraint):
-            //        s.addConstraint(c2)
-            //    s.removeConstraint(c1)
-            //    assert not s.hasConstraint(c1)
-
-            //    s.addConstraint(c2)
-            //    assert s.hasConstraint(c2)
-            //    s.reset()
-            //    assert not s.hasConstraint(c2)
+            s.AddConstraint(c2);
+            Assert.True(s.HasConstraint(c2));
+            s.Reset();
+            Assert.False(s.HasConstraint(c2));
         }
 
         [Fact]
@@ -117,26 +80,27 @@ namespace Kiwi.Tests
         [Fact]
         public void test_solving_with_strength()
         {
-            //    """Test solving a system with unstatisfiable non-required constraint.
+            // Test solving a system with unstatisfiable non-required constraint.
 
-            //    """
-            //    v1 = Variable("foo")
-            //    v2 = Variable("bar")
-            //    s = Solver()
+            var v1 = new Variable("foo");
+            var v2 = new Variable("bar");
+            var s = new Solver();
 
-            //    s.addConstraint(v1 + v2 == 0)
-            //    s.addConstraint(v1 == 10)
-            //    s.addConstraint((v2 >= 0) | "weak")
-            //    s.updateVariables()
-            //    assert v1.value() == 10 and v2.value() == -10
+            s.AddConstraint(v1 + v2 == 0);
+            s.AddConstraint(v1 == 10);
+            s.AddConstraint((v2 >= 0) | Strength.Weak);
+            s.UpdateVariables();
+            Assert.Equal(10, v1.Value);
+            Assert.Equal(-10, v2.Value);
 
-            //    s.reset()
+            s.Reset();
 
-            //    s.addConstraint(v1 + v2 == 0)
-            //    s.addConstraint((v1 >= 10) | "medium")
-            //    s.addConstraint((v2 == 2) | "strong")
-            //    s.updateVariables()
-            //    assert v1.value() == -2 and v2.value() == 2
+            s.AddConstraint(v1 + v2 == 0);
+            s.AddConstraint((v1 >= 10) | Strength.Medium);
+            s.AddConstraint((v2 == 2) | Strength.Strong);
+            s.UpdateVariables();
+            Assert.Equal(-2, v1.Value);
+            Assert.Equal(2, v2.Value);
         }
     }
 }
