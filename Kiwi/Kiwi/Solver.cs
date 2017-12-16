@@ -70,9 +70,62 @@ namespace Kiwi
         /// </exception>
         public void AddConstraint(Constraint constraint)
         {
+            if (_cns.ContainsKey(constraint))
+            {
+                throw new DuplicateConstraint(constraint);
+            }
+
+            // Creating a row causes symbols to reserved for the variables
+            // in the constraint. If this method exits with an exception,
+            // then its possible those variables will linger in the var map.
+            // Since its likely that those variables will be used in other
+            // constraints and since exceptional conditions are uncommon,
+            // i'm not too worried about aggressive cleanup of the var map.
+            Tag tag = new Tag();
+            Row row = CreateRow(constraint, tag);
+            Symbol subject = ChooseSubject(row, tag);
+
+            // If chooseSubject could find a valid entering symbol, one
+            // last option is available if the entire row is composed of
+            // dummy variables. If the constant of the row is zero, then
+            // this represents redundant constraints and the new dummy
+            // marker can enter the basis. If the constant is non-zero,
+            // then it represents an unsatisfiable constraint.
+            if (subject.Type == SymbolType.Invalid && AllDummies(row))
+            {
+                if (!Row.nearZero(row.Constant))
+                {
+                    throw new UnsatisfiableConstraint(constraint);
+                }
+                subject = tag.Marker;
+            }
+
+            // If an entering symbol still isn't found, then the row must
+            // be added using an artificial variable. If that fails, then
+            // the row represents an unsatisfiable constraint.
+            if (subject.Type == SymbolType.Invalid)
+            {
+                if (!AddWithArtificialVariable(row))
+                {
+                    throw new UnsatisfiableConstraint(constraint);
+                }
+            }
+            else
+            {
+                row.SolveFor(subject);
+                Substitute(subject, row);
+                _rows[subject] = row;
+            }
+
+            _cns[constraint] = tag;
+
+            // Optimizing after each constraint is added performs less
+            // aggregate work due to a smaller average system size. It
+            // also ensures the solver remains in a consistent state.
+            Optimize(_objective);
         }
         //	void addConstraint( const Constraint& constraint )
-        //	{
+            //	{
         //		if( m_cns.find( constraint ) != m_cns.end() )
         //			throw DuplicateConstraint( constraint );
 
@@ -131,6 +184,40 @@ namespace Kiwi
         /// <exception cref="UnknownConstraint">The given constraint has not been added to the solver.</exception>
         public void RemoveConstraint(Constraint constraint)
         {
+            if (!_cns.TryGetValue(constraint, out Tag tag))
+            {
+                throw new UnknownConstraint(constraint);
+            }
+
+            _cns.Remove(constraint);
+
+            // Remove the error effects from the objective function
+            // *before* pivoting, or substitutions into the objective
+            // will lead to incorrect solver results.
+            RemoveConstraintEffects(constraint, tag);
+            
+            // If the marker is basic, simply drop the row. Otherwise,
+            // pivot the marker into the basis and then drop the row.
+            if (!_rows.Remove(tag.Marker))
+            {
+                var row_it = GetMarkerLeavingRow(tag.Marker);
+                if (row_it == null)
+                {
+                    throw new InternalSolverError("failed to find leaving row");
+                }
+
+                Symbol leaving = row_it.Value.Key;
+                Row rowptr = row_it.Value.Value;
+
+                _rows.Remove(leaving);
+                rowptr.SolveFor(leaving, tag.Marker);
+                Substitute(tag.Marker, rowptr);
+            }
+
+            // Optimizing after each constraint is removed ensures that the
+            // solver remains consistent. It makes the solver api easier to
+            // use at a small tradeoff for speed.
+            Optimize(_objective);
         }
         //	void removeConstraint( const Constraint& constraint )
         //	{
@@ -195,6 +282,25 @@ namespace Kiwi
         /// <exception cref="BadRequiredStrength">The given strength is >= required.</exception>
         public void AddEditVariable(Variable variable, double strength)
         {
+            if (_edits.ContainsKey(variable))
+            {
+                throw new DuplicateEditVariable(variable);
+            }
+
+            strength = Strength.Clip(strength);
+            if (strength == Strength.Required)
+            {
+                throw new BadRequiredStrength();
+            }
+
+            Constraint cn = new Constraint(new Expression(new Term(variable)), RelationalOperator.OP_EQ, strength);
+            AddConstraint(cn);
+            _edits[variable] = new EditInfo
+            {
+                Tag = _cns[cn],
+                Constraint = cn,
+                Constant = 0.0
+            };
         }
         //	void addEditVariable( const Variable& variable, double strength )
         //	{
@@ -250,6 +356,49 @@ namespace Kiwi
         /// <exception cref="UnknownEditVariable">The given edit variable has not been added to the solver.</exception>
         public void SuggestValue(Variable variable, double value)
         {
+            if (!_edits.TryGetValue(variable, out EditInfo it))
+            {
+                throw new UnknownEditVariable(variable);
+            }
+
+            using (new DualOptimizeGuard(this))
+            {
+                EditInfo info = it;
+                double delta = value - info.Constant;
+                info.Constant = value;
+
+                // Check first if the positive error variable is basic.
+                if (_rows.TryGetValue(info.Tag.Marker, out Row row))
+                {
+                    if (row.Add(-delta) < 0.0)
+                    {
+                        _infeasibleRows.Push(info.Tag.Marker);
+                    }
+                    return;
+                }
+
+                // Check next if the negative error variable is basic.
+                if (_rows.TryGetValue(info.Tag.Other, out Row otherRow))
+                {
+                    if (otherRow.Add(delta) < 0.0)
+                    {
+                        _infeasibleRows.Push(info.Tag.Other);
+                    }
+                    return;
+                }
+
+                // Otherwise update each row where the error variables exist.
+                foreach (var row_it in _rows)
+                {
+                    double coeff = row_it.Value.CoefficientFor(info.Tag.Marker);
+                    if (coeff != 0.0 &&
+                        row_it.Value.Add(delta * coeff) < 0.0 &&
+                        row_it.Key.Type != SymbolType.External)
+                    {
+                        _infeasibleRows.Push(row_it.Key);
+                    }
+                }
+            }
         }
         //	void suggestValue( const Variable& variable, double value )
         //	{
@@ -297,8 +446,9 @@ namespace Kiwi
         /// </summary>
         public void UpdateVariables()
         {
-            foreach (var var in _vars.Keys)
+            foreach (Variable var in _vars.Keys)
             {
+                var.Value = _rows.TryGetValue(_vars[var], out Row row) ? row.Constant : 0.0;
             }
         }
         //	void updateVariables()
@@ -353,16 +503,16 @@ namespace Kiwi
 
         #region Private Methods
 
-        private void ClearRows()
+        private void ClearRows() // TODO inline
         {
             _rows.Clear();
         }
-
         //	void clearRows()
         //	{
         //		std::for_each( m_rows.begin(), m_rows.end(), RowDeleter() );
         //		m_rows.clear();
         //	}
+
 
         /* Get the symbol for the given variable.
         If a symbol does not exist for the variable, one will be created.
@@ -382,23 +532,92 @@ namespace Kiwi
         //		return symbol;
         //	}
 
-        //	/* Create a new Row object for the given constraint.
 
-        //	The terms in the constraint will be converted to cells in the row.
-        //	Any term in the constraint with a coefficient of zero is ignored.
-        //	This method uses the `getVarSymbol` method to get the symbol for
-        //	the variables added to the row. If the symbol for a given cell
-        //	variable is basic, the cell variable will be substituted with the
-        //	basic row.
+        // Create a new Row object for the given constraint.
+        //
+        // The terms in the constraint will be converted to cells in the row.
+        // Any term in the constraint with a coefficient of zero is ignored.
+        // This method uses the `getVarSymbol` method to get the symbol for
+        // the variables added to the row. If the symbol for a given cell
+        // variable is basic, the cell variable will be substituted with the
+        // basic row.
+        //
+        // The necessary slack and error variables will be added to the row.
+        // If the constant for the row is negative, the sign for the row
+        // will be inverted so the constant becomes positive.
+        //
+        // The tag will be updated with the marker and error symbols to use
+        // for tracking the movement of the constraint in the tableau.
+        private Row CreateRow(Constraint constraint, Tag tag )
+        {
+            var expr = constraint.Expression;
+            var row = new Row(expr.Constant);
 
-        //	The necessary slack and error variables will be added to the row.
-        //	If the constant for the row is negative, the sign for the row
-        //	will be inverted so the constant becomes positive.
+            // Substitute the current basic variables into the row.
+            foreach (var it in expr.Terms)
+            {
+                if (!Row.nearZero(it.Coefficient))
+                {
+                    Symbol symbol = GetVarSymbol(it.Variable);
+                    if (_rows.TryGetValue(symbol, out Row row_it))
+                    {
+                        row.Insert(row_it, it.Coefficient);
+                    }
+                    else
+                    {
+                        row.Insert(symbol, it.Coefficient);
+                    }
+                }
+            }
 
-        //	The tag will be updated with the marker and error symbols to use
-        //	for tracking the movement of the constraint in the tableau.
+            // Add the necessary slack, error, and dummy variables.
+            switch (constraint.Op)
+            {
+                case RelationalOperator.OP_LE:
+                case RelationalOperator.OP_GE:
+                {
+                        var coeff = constraint.Op == RelationalOperator.OP_LE ? 1.0 : -1.0;
+                        var slack = new Symbol(SymbolType.Slack, _idTick++);
+                        tag.Marker = slack;
+                        row.Insert(slack, coeff);
+                        if (constraint.Strength < Strength.Required)
+                        {
+                            var error = new Symbol(SymbolType.Error, _idTick++ );
+                            tag.Other = error;
+                            row.Insert(error, -coeff);
+                            _objective.Insert(error, constraint.Strength);
+                        }
+                        break;
+                }
+                case RelationalOperator.OP_EQ:
+                {
+                    if (constraint.Strength < Strength.Required)
+                    {
+                        var errplus = new Symbol(SymbolType.Error, _idTick++);
+                        var errminus = new Symbol(SymbolType.Error, _idTick++);
+                        tag.Marker = errplus;
+                        tag.Other = errminus;
+                        row.Insert(errplus, -1.0); // v = eplus - eminus
+                        row.Insert(errminus, 1.0); // v - eplus + eminus = 0
+                        _objective.Insert(errplus, constraint.Strength);
+                        _objective.Insert(errminus, constraint.Strength);
+                    }
+                    else
+                    {
+                        var dummy = new Symbol(SymbolType.Dummy, _idTick++);
+                        tag.Marker = dummy;
+                        row.Insert(dummy);
+                    }
+                    break;
+                }
+            }
 
-        //	*/
+            // Ensure the row as a positive constant.
+            if (row.Constant < 0.0)
+                row.ReverseSign();
+
+            return row;
+        }
         //	Row* createRow( const Constraint& constraint, Tag& tag )
         //	{
         //		typedef std::vector<Term>::const_iterator iter_t;
@@ -469,6 +688,7 @@ namespace Kiwi
         //		return row;
         //	}
 
+
         //	Choose the subject for solving for the row.
         //
         //	This method will choose the best subject for using as the solve
@@ -483,29 +703,27 @@ namespace Kiwi
         //	If a subject cannot be found, an invalid symbol will be returned.
         private Symbol ChooseSubject(Row row, Tag tag)
         {
-            throw new NotImplementedException();
-
             foreach (var symbol in row.Cells.Keys)
             {
                 if (symbol.Type == SymbolType.External)
                 {
                     return symbol;
                 }
-
-                if (tag.Marker.Type == SymbolType.Slack ||
-                    tag.Marker.Type == SymbolType.Error)
-                {
-                    if (row.CoefficientFor(tag.Marker) < 0.0) return tag.Marker;
-                }
-
-                if (tag.Other.Type == SymbolType.Slack ||
-                    tag.Other.Type == SymbolType.Error)
-                {
-                    if (row.CoefficientFor(tag.Other) < 0.0) return tag.Other;
-                }
-
-                return new Symbol();
             }
+
+            if (tag.Marker.Type == SymbolType.Slack ||
+                tag.Marker.Type == SymbolType.Error)
+            {
+                if (row.CoefficientFor(tag.Marker) < 0.0) return tag.Marker;
+            }
+
+            if (tag.Other.Type == SymbolType.Slack ||
+                tag.Other.Type == SymbolType.Error)
+            {
+                if (row.CoefficientFor(tag.Other) < 0.0) return tag.Other;
+            }
+
+            return new Symbol();
         }
         //	{
         //		typedef Row::CellMap::const_iterator iter_t;
@@ -534,8 +752,44 @@ namespace Kiwi
         //	This will return false if the constraint cannot be satisfied.
         private bool AddWithArtificialVariable(Row row)
         {
-            throw new NotImplementedException();
+            // Create and add the artificial variable to the tableau
+            var art = new Symbol(SymbolType.Slack, _idTick++);
+            _rows[art] = new Row(row);
+            _artificial = new Row(row);
 
+            // Optimize the artificial objective. This is successful
+            // only if the artificial objective is optimized to zero.
+            Optimize(_artificial);
+            bool success = Row.nearZero(_artificial.Constant);
+            _artificial = null;
+
+            // If the artificial variable is basic, pivot the row so that
+            // it becomes basic. If the row is constant, exit early.
+            if (_rows.TryGetValue(art, out Row rowptr))
+            {
+                _rows.Remove(art);
+                if (rowptr.Cells.Count == 0)
+                {
+                    return success;
+                }
+
+                Symbol entering = AnyPivotableSymbol(rowptr);
+                if (entering.Type == SymbolType.Invalid)
+                {
+                    return false;  // unsatisfiable (will this ever happen?)
+                }
+                rowptr.SolveFor(art, entering);
+                Substitute(entering, rowptr);
+                _rows[entering] = rowptr;
+            }
+
+            // Remove the artificial variable from the tableau.
+            foreach (var it in _rows)
+            {
+                it.Value.Remove(art);
+            }
+            _objective.Remove(art);
+            return success;
         }
         // 	{
         //		// Create and add the artificial variable to the tableau
@@ -581,6 +835,16 @@ namespace Kiwi
         // in the tableau and the objective function with the given row.
         private void Substitute(Symbol symbol, Row row)
         {
+            foreach (var it in _rows)
+            {
+                it.Value.Substitude(symbol, row);
+                if (it.Key.Type != SymbolType.External && it.Value.Constant < 0.0)
+                {
+                    _infeasibleRows.Push(it.Key);
+                }
+            }
+            _objective.Substitude(symbol, row);
+            _artificial?.Substitude(symbol, row);
         }
         //	{
         //		typedef RowMap::iterator iter_t;
@@ -617,9 +881,20 @@ namespace Kiwi
                     return;
                 }
 
-                var obj = GetLeavingRow(entering);
+                var it = GetLeavingRow(entering);
+                if (it == null)
+                {
+                    throw new InternalSolverError("The objective is unbounded.");
+                }
 
+                // pivot the entering symbol into the basis
+                Symbol leaving = it.Value.Key;
+                Row row = it.Value.Value;
 
+                _rows.Remove(leaving);
+                row.SolveFor(leaving, entering);
+                Substitute(entering, row);
+                _rows[entering] = row;
             }
         }
         //	{
@@ -830,26 +1105,23 @@ namespace Kiwi
         //	which holds the exit symbol. If no appropriate exit symbol is
         //	found, the end() iterator will be returned. This indicates that
         //	the objective function is unbounded.
-        private (Symbol symbol, Row row) GetLeavingRow(Symbol entering)
+        KeyValuePair<Symbol, Row>? GetLeavingRow(Symbol entering)
         {
             var ratio = double.MaxValue;
-            var found = (symbol:Symbol.Invalid, row:(Row) null);
+            KeyValuePair<Symbol, Row>? found = null;
 
-            foreach (var entry in _rows)
+            foreach (var it in _rows)
             {
-                var symbol = entry.Key;
-                var row = entry.Value;
-
-                if (symbol.Type != SymbolType.External)
+                if (it.Key.Type == SymbolType.External)
                 {
-                    double temp = row.CoefficientFor(entering);
+                    double temp = it.Value.CoefficientFor(entering);
                     if (temp < 0.0)
                     {
-                        double tempRatio = -row.Constant / temp;
-                        if (tempRatio < ratio)
+                        double temp_ratio = -it.Value.Constant / temp;
+                        if (temp_ratio < ratio)
                         {
-                            ratio = tempRatio;
-                            found = (symbol, row);
+                            ratio = temp_ratio;
+                            found = it;
                         }
                     }
                 }
@@ -900,19 +1172,49 @@ namespace Kiwi
         //	If the marker does not exist in any row, the row map end() iterator
         //	will be returned. This indicates an internal solver error since
         //	the marker *should* exist somewhere in the tableau.
-        private Row GetMarkerLeavingRow(Symbol marker)
+        private KeyValuePair<Symbol, Row>? GetMarkerLeavingRow(Symbol marker)
         {
             var r1 = double.MaxValue;
             var r2 = double.MaxValue;
+            KeyValuePair<Symbol, Row>? first = null;
+            KeyValuePair<Symbol, Row>? second = null;
+            KeyValuePair<Symbol, Row>? third = null;
 
-            foreach (var symbol in _rows.Keys)
+            foreach (var it in _rows)
             {
-                 // TODO
+
+                double c = it.Value.CoefficientFor(marker);
+
+                if (c == 0.0) continue;
+
+                if (it.Key.Type == SymbolType.External)
+                {
+                    third = it;
+                }
+                else if (c < 0.0)
+                {
+                    double r = -it.Value.Constant / c;
+                    if (r < r1)
+                    {
+                        r1 = r;
+                        first = it;
+                    }
+                }
+                else
+                {
+                    double r = it.Value.Constant / c;
+                    if (r < r2)
+                    {
+                        r2 = r;
+                        second = it;
+                    }
+                }
             }
 
-            throw new NotImplementedException();
+            if (first.HasValue) return first.Value;
+            if (second.HasValue) return second.Value;
+            return third;
         }
-
         //	*/
         //	RowMap::iterator getMarkerLeavingRow( const Symbol& marker )
         //	{
@@ -992,7 +1294,15 @@ namespace Kiwi
         }
 
         #endregion
+
+        internal struct DualOptimizeGuard : IDisposable
+        {
+            private readonly Solver _solver;
+            public DualOptimizeGuard(Solver solver) => _solver = solver;
+            public void Dispose() => _solver.DualOptimize();
+        }
     }
+
 
     //	struct DualOptimizeGuard
     //	{

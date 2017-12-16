@@ -27,32 +27,32 @@ namespace Kiwi.Tests
 
             //    """
             //    s = Solver()
-            //    v1 = Variable('foo')
-            //    v2 = Variable('bar')
+            //    v1 = Variable("foo")
+            //    v2 = Variable("bar")
 
             //    with pytest.raises(TypeError):
             //        s.hasEditVariable(object())
             //    with pytest.raises(TypeError):
-            //        s.addEditVariable(object(), 'weak')
+            //        s.addEditVariable(object(), "weak")
             //    with pytest.raises(TypeError):
             //        s.removeEditVariable(object())
             //    with pytest.raises(TypeError):
             //        s.suggestValue(object(), 10)
 
             //    assert not s.hasEditVariable(v1)
-            //    s.addEditVariable(v1, 'weak')
+            //    s.addEditVariable(v1, "weak")
             //    assert s.hasEditVariable(v1)
             //    with pytest.raises(DuplicateEditVariable):
-            //        s.addEditVariable(v1, 'medium')
+            //        s.addEditVariable(v1, "medium")
             //    with pytest.raises(UnknownEditVariable):
             //        s.removeEditVariable(v2)
             //    s.removeEditVariable(v1)
             //    assert not s.hasEditVariable(v1)
 
             //    with pytest.raises(BadRequiredStrength):
-            //        s.addEditVariable(v1, 'required')
+            //        s.addEditVariable(v1, "required")
 
-            //    s.addEditVariable(v2, 'strong')
+            //    s.addEditVariable(v2, "strong")
             //    assert s.hasEditVariable(v2)
             //    with pytest.raises(UnknownEditVariable):
             //        s.suggestValue(v1, 10)
@@ -68,7 +68,7 @@ namespace Kiwi.Tests
 
             //    """
             //    s = Solver()
-            //    v = Variable('foo')
+            //    v = Variable("foo")
             //    c1 = v >= 1
             //    c2 = v <= 0
 
@@ -100,20 +100,18 @@ namespace Kiwi.Tests
         [Fact]
         public void test_solving_under_constrained_system()
         {
-            //    """Test solving an under constrained system.
+            // Test solving an under constrained system.
+            var s = new Solver();
+            var v = new Variable("foo");
+            var c = 2 * v + 1 >= 0;
+            s.AddEditVariable(v, Strength.Weak);
+            s.AddConstraint(c);
+            s.SuggestValue(v, 10);
+            s.UpdateVariables();
 
-            //    """
-            //    s = Solver()
-            //    v = Variable('foo')
-            //    c = 2*v + 1 >= 0
-            //    s.addEditVariable(v, 'weak')
-            //    s.addConstraint(c)
-            //    s.suggestValue(v, 10)
-            //    s.updateVariables()
-
-            //    assert c.expression().value() == 21
-            //    assert c.expression().terms()[0].value() == 20
-            //    assert c.expression().terms()[0].variable().value() == 10
+            Assert.Equal(21, c.Expression.Value);
+            Assert.Equal(20, c.Expression.Terms[0].Value);
+            Assert.Equal(10, c.Expression.Terms[0].Variable.Value);
         }
 
         [Fact]
@@ -122,21 +120,21 @@ namespace Kiwi.Tests
             //    """Test solving a system with unstatisfiable non-required constraint.
 
             //    """
-            //    v1 = Variable('foo')
-            //    v2 = Variable('bar')
+            //    v1 = Variable("foo")
+            //    v2 = Variable("bar")
             //    s = Solver()
 
             //    s.addConstraint(v1 + v2 == 0)
             //    s.addConstraint(v1 == 10)
-            //    s.addConstraint((v2 >= 0) | 'weak')
+            //    s.addConstraint((v2 >= 0) | "weak")
             //    s.updateVariables()
             //    assert v1.value() == 10 and v2.value() == -10
 
             //    s.reset()
 
             //    s.addConstraint(v1 + v2 == 0)
-            //    s.addConstraint((v1 >= 10) | 'medium')
-            //    s.addConstraint((v2 == 2) | 'strong')
+            //    s.addConstraint((v1 >= 10) | "medium")
+            //    s.addConstraint((v2 == 2) | "strong")
             //    s.updateVariables()
             //    assert v1.value() == -2 and v2.value() == 2
         }
