@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 
 namespace Kiwi
@@ -11,7 +12,11 @@ namespace Kiwi
         private class Tag // TODO: make struct?
         {
             public Symbol Marker;
-            public Symbol Other;
+            // NOTE: original cpp version doesn't have initialization
+            // of other field in constructor, but this version fails 
+            // sometimes if this field left uninitialized.
+            // TODO: find out reason whats going wrong
+            public Symbol Other = new Symbol();
         }
 
         private class EditInfo // TODO: make struct?
@@ -21,15 +26,21 @@ namespace Kiwi
             public double Constant;
         }
 
+        // NOTE in original C++ version std::map is used which is analog to SortedDictionary in C#
+        // TODO: need to understand how use of Dictionaty vs SortedDictionary actually affects the performance
+        private class Map<TKey, TValue> : Dictionary<TKey, TValue>
+        {
+        }
+
         #endregion
         //	typedef MapType<Variable, Symbol>::Type VarMap;
         //	typedef MapType<Symbol, Row*>::Type RowMap;
         //	typedef MapType<Constraint, Tag>::Type CnMap;
         //	typedef MapType<Variable, EditInfo>::Type EditMap;
-        private readonly Dictionary<Constraint, Tag> _cns;
-        private readonly Dictionary<Symbol, Row> _rows;
-        private readonly Dictionary<Variable, Symbol> _vars;
-        private readonly Dictionary<Variable, EditInfo> _edits;
+        private readonly Map<Constraint, Tag> _cns;
+        private readonly Map<Symbol, Row> _rows;
+        private readonly Map<Variable, Symbol> _vars;
+        private readonly Map<Variable, EditInfo> _edits;
         private readonly Stack<Symbol> _infeasibleRows;
         private Row _objective;
         private Row _artificial;
@@ -45,10 +56,10 @@ namespace Kiwi
 
         public Solver()
         {
-            _cns = new Dictionary<Constraint, Tag>();
-            _rows = new Dictionary<Symbol, Row>();
-            _vars = new Dictionary<Variable, Symbol>();
-            _edits = new Dictionary<Variable, EditInfo>();
+            _cns = new Map<Constraint, Tag>();
+            _rows = new Map<Symbol, Row>();
+            _vars = new Map<Variable, Symbol>();
+            _edits = new Map<Variable, EditInfo>();
             _infeasibleRows = new Stack<Symbol>();
             _objective = new Row();
             _idTick = 1;
@@ -200,14 +211,15 @@ namespace Kiwi
             // pivot the marker into the basis and then drop the row.
             if (!_rows.Remove(tag.Marker))
             {
-                var row_it = GetMarkerLeavingRow(tag.Marker);
-                if (row_it == null)
+                var row = GetMarkerLeavingRow(tag.Marker);
+                if (row == null)
                 {
                     throw new InternalSolverError("failed to find leaving row");
                 }
 
-                Symbol leaving = row_it.Value.Key;
-                Row rowptr = row_it.Value.Value;
+                // TODO: remove kvp as return value
+                Symbol leaving = row.Value.Key;
+                Row rowptr = row.Value.Value;
 
                 _rows.Remove(leaving);
                 rowptr.SolveFor(leaving, tag.Marker);
@@ -356,14 +368,13 @@ namespace Kiwi
         /// <exception cref="UnknownEditVariable">The given edit variable has not been added to the solver.</exception>
         public void SuggestValue(Variable variable, double value)
         {
-            if (!_edits.TryGetValue(variable, out EditInfo it))
+            if (!_edits.TryGetValue(variable, out EditInfo info))
             {
                 throw new UnknownEditVariable(variable);
             }
 
             using (new DualOptimizeGuard(this))
             {
-                EditInfo info = it;
                 double delta = value - info.Constant;
                 info.Constant = value;
 
@@ -554,18 +565,18 @@ namespace Kiwi
             var row = new Row(expr.Constant);
 
             // Substitute the current basic variables into the row.
-            foreach (var it in expr.Terms)
+            foreach (var term in expr.Terms)
             {
-                if (!Row.nearZero(it.Coefficient))
+                if (!Row.nearZero(term.Coefficient))
                 {
-                    Symbol symbol = GetVarSymbol(it.Variable);
+                    Symbol symbol = GetVarSymbol(term.Variable);
                     if (_rows.TryGetValue(symbol, out Row row_it))
                     {
-                        row.Insert(row_it, it.Coefficient);
+                        row.Insert(row_it, term.Coefficient);
                     }
                     else
                     {
-                        row.Insert(symbol, it.Coefficient);
+                        row.Insert(symbol, term.Coefficient);
                     }
                 }
             }
@@ -717,6 +728,8 @@ namespace Kiwi
                 if (row.CoefficientFor(tag.Marker) < 0.0) return tag.Marker;
             }
 
+
+            // TODO tag.Other != null
             if (tag.Other.Type == SymbolType.Slack ||
                 tag.Other.Type == SymbolType.Error)
             {
@@ -762,6 +775,8 @@ namespace Kiwi
             Optimize(_artificial);
             bool success = Row.nearZero(_artificial.Constant);
             _artificial = null;
+            
+            // TODO: saving _artificial as temp state is not nice
 
             // If the artificial variable is basic, pivot the row so that
             // it becomes basic. If the row is constant, exit early.
@@ -986,6 +1001,7 @@ namespace Kiwi
         //	invalid symbol is returned.
         private Symbol GetEnteringSymbol(Row objective)
         {
+            // TODO use tuples
             foreach (var entry in objective.Cells)
             {
                 Symbol symbol = entry.Key;
@@ -1112,7 +1128,7 @@ namespace Kiwi
 
             foreach (var it in _rows)
             {
-                if (it.Key.Type == SymbolType.External)
+                if (it.Key.Type != SymbolType.External)
                 {
                     double temp = it.Value.CoefficientFor(entering);
                     if (temp < 0.0)
@@ -1182,7 +1198,6 @@ namespace Kiwi
 
             foreach (var it in _rows)
             {
-
                 double c = it.Value.CoefficientFor(marker);
 
                 if (c == 0.0) continue;
@@ -1267,6 +1282,13 @@ namespace Kiwi
             if (tag.Marker.Type == SymbolType.Error) RemoveMarkerEffects(tag.Marker, cn.Strength);
             if (tag.Other.Type == SymbolType.Error) RemoveMarkerEffects(tag.Other, cn.Strength);
         }
+	    //void removeConstraintEffects( const Constraint& cn, const Tag& tag )
+	    //{
+	    //	if( tag.marker.type() == Symbol::Error )
+	    //		removeMarkerEffects( tag.marker, cn.strength() );
+	    //	if( tag.other.type() == Symbol::Error )
+	    //		removeMarkerEffects( tag.other, cn.strength() );
+	    //}
 
 
         // Remove the effects of an error marker on the objective function.
@@ -1281,6 +1303,14 @@ namespace Kiwi
                 _objective.Insert(marker, -strength);
             }
         }
+	    //void removeMarkerEffects( const Symbol& marker, double strength )
+	    //{
+	    //	RowMap::iterator row_it = m_rows.find( marker );
+	    //	if( row_it != m_rows.end() )
+	    //		m_objective->insert( *row_it->second, -strength );
+	    //	else
+	    //		m_objective->insert( marker, -strength );
+	    //}
 
 
         // Test whether a row is composed of all dummy variables.
@@ -1292,6 +1322,18 @@ namespace Kiwi
             }
             return true;
         }
+	    //bool allDummies( const Row& row )
+	    //{
+	    //	typedef Row::CellMap::const_iterator iter_t;
+	    //	iter_t end = row.cells().end();
+	    //	for( iter_t it = row.cells().begin(); it != end; ++it )
+	    //	{
+	    //		if( it->first.type() != Symbol::Dummy )
+	    //			return false;
+	    //	}
+	    //	return true;
+	    //}
+
 
         #endregion
 

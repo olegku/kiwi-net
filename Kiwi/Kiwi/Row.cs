@@ -46,15 +46,15 @@ namespace Kiwi
         // is zero, the symbol will be removed from the row.
         public void Insert(Symbol symbol, double coefficient = 1.0)
         {
-            Cells.TryGetValue(symbol, out var value);
-            value += coefficient;
-            if (nearZero(value))
+            coefficient += Cells.GetValueOrDefault(symbol);
+
+            if (nearZero(coefficient))
             {
                 Cells.Remove(symbol);
             }
             else
             {
-                Cells[symbol] = value;
+                Cells[symbol] = coefficient;
             }
         }
         //	void insert( const Symbol& symbol, double coefficient = 1.0 )
@@ -180,7 +180,7 @@ namespace Kiwi
         // If the symbol does not exist in the row, zero will be returned.
         public double CoefficientFor(Symbol symbol)
         {
-            return Cells.TryGetValue(symbol, out var value) ? value : 0.0;
+            return Cells.GetValueOrDefault(symbol);
         }
         //	double coefficientFor( const Symbol& symbol ) const
         //	{
