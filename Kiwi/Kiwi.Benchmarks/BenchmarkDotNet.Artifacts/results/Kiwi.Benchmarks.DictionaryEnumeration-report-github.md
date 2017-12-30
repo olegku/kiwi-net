@@ -9,10 +9,12 @@ Frequency=1753827 Hz, Resolution=570.1817 ns, Timer=TSC
 
 
 ```
-|                      Method |      Mean |     Error |    StdDev |
-|---------------------------- |----------:|----------:|----------:|
-|                 ForeachPair |  78.21 us | 0.5377 us | 0.4767 us |
-|                  ForeachKey |  63.20 us | 0.6250 us | 0.5219 us |
-|          ForeachKeyGetValue | 274.96 us | 3.1838 us | 2.8224 us |
-| ForeachKeyValueDeconstruct1 |  74.56 us | 1.2723 us | 1.1901 us |
-| ForeachKeyValueDeconstruct2 | 108.98 us | 1.0501 us | 0.9823 us |
+|                      Method |        Mean |      Error |    StdDev |      Median |
+|---------------------------- |------------:|-----------:|----------:|------------:|
+|                    ForLoop1 |    402.4 us |   9.059 us |  20.07 us |    394.4 us |
+|                    ForLoop2 |    407.9 us |   8.156 us |  22.33 us |    398.9 us |
+|                  ForeachKey |  4,578.4 us |  90.389 us | 190.66 us |  4,517.1 us |
+| ForeachKeyValueDeconstruct1 |  7,625.2 us | 115.150 us | 102.08 us |  7,587.6 us |
+| ForeachKeyValueDeconstruct2 |  7,556.1 us |  75.622 us |  63.15 us |  7,551.5 us |
+|                 ForeachPair |  7,721.2 us |  97.674 us |  91.36 us |  7,740.9 us |
+|          ForeachKeyGetValue | 18,871.7 us | 357.883 us | 334.76 us | 18,727.7 us |

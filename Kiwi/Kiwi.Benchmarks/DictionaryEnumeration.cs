@@ -5,7 +5,7 @@ namespace Kiwi.Benchmarks
 {
     public class DictionaryEnumeration
     {
-        private const int N = 10000;
+        private const int N = 1000000;
         private readonly Dictionary<long, string> _dictionary = new Dictionary<long, string>();
 
         public DictionaryEnumeration()
@@ -16,11 +16,25 @@ namespace Kiwi.Benchmarks
             }
         }
 
-        [Benchmark]
-        public void ForeachPair()
+        private static void DoNothing(long key, string value)
         {
-            foreach (var entry in _dictionary)
+        }
+
+        [Benchmark]
+        public void ForLoop1()
+        {
+            for (int i = 0; i < N; i++)
             {
+                DoNothing(i, null);
+            }
+        }
+
+        [Benchmark]
+        public void ForLoop2()
+        {
+            for (int i = 0; i < N; i++)
+            {
+                DoNothing(i, null);
             }
         }
 
@@ -29,15 +43,7 @@ namespace Kiwi.Benchmarks
         {
             foreach (var key in _dictionary.Keys)
             {
-            }
-        }
-
-        [Benchmark]
-        public void ForeachKeyGetValue()
-        {
-            foreach (var key in _dictionary.Keys)
-            {
-                var value = _dictionary[key];
+                DoNothing(key, null);
             }
         }
 
@@ -46,6 +52,7 @@ namespace Kiwi.Benchmarks
         {
             foreach (var (key, value) in _dictionary)
             {
+                DoNothing(key, value);
             }
         }
 
@@ -54,6 +61,25 @@ namespace Kiwi.Benchmarks
         {
             foreach ((var key, var value) in _dictionary)
             {
+                DoNothing(key, value);
+            }
+        }
+
+        [Benchmark]
+        public void ForeachPair()
+        {
+            foreach (var entry in _dictionary)
+            {
+                DoNothing(entry.Key, entry.Value);
+            }
+        }
+
+        [Benchmark]
+        public void ForeachKeyGetValue()
+        {
+            foreach (var key in _dictionary.Keys)
+            {
+                DoNothing(key, _dictionary[key]);
             }
         }
     }

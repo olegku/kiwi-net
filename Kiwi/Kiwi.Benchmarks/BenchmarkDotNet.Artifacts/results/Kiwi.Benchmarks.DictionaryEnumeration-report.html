@@ -23,13 +23,15 @@ Frequency=1753827 Hz, Resolution=570.1817 ns, Timer=TSC
 <pre><code></code></pre>
 
 <table>
-<thead><tr><th>               Method</th><th>Mean</th><th>Error</th><th>StdDev</th>
+<thead><tr><th>               Method</th><th> Mean</th><th>Error</th><th>StdDev</th><th>Median</th>
 </tr>
-</thead><tbody><tr><td>          ForeachPair</td><td>78.21 us</td><td>0.5377 us</td><td>0.4767 us</td>
-</tr><tr><td>           ForeachKey</td><td>63.20 us</td><td>0.6250 us</td><td>0.5219 us</td>
-</tr><tr><td>   ForeachKeyGetValue</td><td>274.96 us</td><td>3.1838 us</td><td>2.8224 us</td>
-</tr><tr><td>ForeachKeyValueDeconstruct1</td><td>74.56 us</td><td>1.2723 us</td><td>1.1901 us</td>
-</tr><tr><td>ForeachKeyValueDeconstruct2</td><td>108.98 us</td><td>1.0501 us</td><td>0.9823 us</td>
+</thead><tbody><tr><td>             ForLoop1</td><td>402.4 us</td><td>9.059 us</td><td>20.07 us</td><td>394.4 us</td>
+</tr><tr><td>             ForLoop2</td><td>407.9 us</td><td>8.156 us</td><td>22.33 us</td><td>398.9 us</td>
+</tr><tr><td>           ForeachKey</td><td>4,578.4 us</td><td>90.389 us</td><td>190.66 us</td><td>4,517.1 us</td>
+</tr><tr><td>ForeachKeyValueDeconstruct1</td><td>7,625.2 us</td><td>115.150 us</td><td>102.08 us</td><td>7,587.6 us</td>
+</tr><tr><td>ForeachKeyValueDeconstruct2</td><td>7,556.1 us</td><td>75.622 us</td><td>63.15 us</td><td>7,551.5 us</td>
+</tr><tr><td>          ForeachPair</td><td>7,721.2 us</td><td>97.674 us</td><td>91.36 us</td><td>7,740.9 us</td>
+</tr><tr><td>   ForeachKeyGetValue</td><td>18,871.7 us</td><td>357.883 us</td><td>334.76 us</td><td>18,727.7 us</td>
 </tr></tbody></table>
 </body>
 </html>
